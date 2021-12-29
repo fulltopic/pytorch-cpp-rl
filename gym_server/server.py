@@ -4,6 +4,8 @@ Contains a class that trains an agent.
 import logging
 from typing import Tuple
 import numpy as np
+import sys
+sys.path.append('/home/zf/.local/lib/python3.7/site-packages')
 import gym
 
 from gym_server.envs import make_vec_envs
@@ -21,8 +23,10 @@ class Server:
     RL agents on OpenAI gym environments.
     """
 
-    def __init__(self, zmq_client: ZmqClient):
-        self.zmq_client: ZmqClient = zmq_client
+    #def __init__(self, zmq_client: ZmqClient):
+    def __init__(self, zmq_client):
+        #self.zmq_client: ZmqClient = zmq_client
+        self.zmq_client = zmq_client
         self.env: gym.Env = None
         logging.info("Gym server initialized")
 
@@ -57,8 +61,18 @@ class Server:
                 self.zmq_client.send(MakeMessage())
 
             elif method == 'reset':
-                observation = self.__reset()
-                self.zmq_client.send(ResetMessage(observation))
+                # print("Reset param ", param['x'])
+                x = param['x']
+                if x == -1:
+                    observation = self.__reset()
+                    # resetrsp = ResetMessage(observation)
+                    # logging.info("size of msg %d ", resetrsp.to_msg().__str__().__sizeof__())
+                    # resetrsp.to_msg().dd
+                    # logging.info("Reset rsp size %d ", )
+                    self.zmq_client.send(ResetMessage(observation))
+                else:
+                    observation = self.__resetOne(x)
+                    self.zmq_client.send(ResetMessage(observation))
 
             elif method == 'step':
                 if 'render' in param:
@@ -90,14 +104,18 @@ class Server:
         Makes a vectorized environment of the type and number specified.
         """
         logging.info("Making %d %ss", num_envs, env_name)
-        self.env = make_vec_envs(env_name, 0, num_envs)
+        self.env = make_vec_envs(env_name, 42, num_envs)
 
     def reset(self) -> np.ndarray:
         """
         Resets the environments.
         """
-        logging.info("Resetting environments")
+        logging.info("Resetting environments ")
         return self.env.reset()
+
+    def resetOne(self, x) -> np.ndarray:
+        logging.info("Resetting env %d", x)
+        return self.env.resetOne(x)
 
     def step(self,
              actions: np.ndarray,
@@ -119,5 +137,6 @@ class Server:
     __info = info
     __make = make
     __reset = reset
+    __resetOne = resetOne
     __serve = _serve
     __step = step
